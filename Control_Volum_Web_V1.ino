@@ -323,3 +323,33 @@ void loop() {
     aguardar(200); // Filtro para estabilização da leitura
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//by Bruno Lisboa
