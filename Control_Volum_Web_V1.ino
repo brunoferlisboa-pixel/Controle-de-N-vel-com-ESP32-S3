@@ -2,8 +2,8 @@
 #include <WebServer.h>
 
 // Configurações do Wi-Fi
-const char* ssid = "NOME DA SUA REDE WIFI";
-const char* password = "SENHA DA SUA REDE";
+const char* ssid = "nome da sua rede wifi";
+const char* password = "senha da rede";
 
 // Inicialização do Servidor Web na porta 80
 WebServer server(80);
@@ -13,19 +13,17 @@ const int pinoNivel1 = 4;
 const int pinoNivel2 = 5;
 const int pinoNivelMax = 6;
 
-// Definição dos pinos das Saídas (LEDs, Buzzer e Bomba)
+// Definição dos pinos das Saídas (LEDs e Buzzer)
 const int led1 = 7;             // LED Verde (Nível Baixo)
 const int led2 = 15;            // LED Amarelo (Nível Médio)
 const int ledMax = 16;          // LED Vermelho (Nível Máximo)
 const int pinoAltoFalante = 17; // Pino do alto-falante (fio cinza)
-const int pinoBomba = 18;       // Pino de controle da bomba (Relé/Transistor)
 
 // Variáveis globais para armazenar os estados do painel web
 int porcentagemAtual = 0;
 float metrosAtual = 0.0;
 String statusAtual = "Vazio";
 String nomePainel = "Painel Controle de Nível"; // Nome editável
-bool bombaLigada = false;                       // Estado atual da bomba
 
 void setup() {
   Serial.begin(115200);
@@ -40,13 +38,11 @@ void setup() {
   pinMode(led2, OUTPUT);
   pinMode(ledMax, OUTPUT);
   pinMode(pinoAltoFalante, OUTPUT);
-  pinMode(pinoBomba, OUTPUT);
 
   // Garante que tudo começa desligado
   digitalWrite(led1, LOW);
   digitalWrite(led2, LOW);
   digitalWrite(ledMax, LOW);
-  digitalWrite(pinoBomba, LOW);
   noTone(pinoAltoFalante);
 
   // Conexão ao Wi-Fi
@@ -78,15 +74,8 @@ void setup() {
     }
   });
 
-  // Rota para ligar/desligar a bomba manualmente pelo painel web
-  server.on("/toggleBomba", []() {
-    bombaLigada = !bombaLigada;
-    digitalWrite(pinoBomba, bombaLigada ? HIGH : LOW);
-    server.send(200, "text/plain", bombaLigada ? "LIGADA" : "DESLIGADA");
-  });
-
   server.begin();
-  Serial.println("Sistema de Controle de Nível com Automação de Bomba Ativo!");
+  Serial.println("Sistema de Monitoramento com Alertas Visuais e Web Ativo!");
 }
 
 // Função de atraso inteligente que mantém o servidor web rodando sem travar
@@ -112,7 +101,7 @@ void enviarPaginaWeb() {
   html += ".grid { display: flex; justify-content: space-between; align-items: center; margin-top: 15px; min-height: 280px; }";
   html += ".metrics { text-align: left; width: 52%; display: flex; flex-direction: column; justify-content: center; }";
   html += ".label { font-size: 11px; color: #9aa8b6; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.8px; }";
-  html += ".value { font-size: 26px; font-weight: bold; color: #1e293b; margin-bottom: 20px; transition: all 0.3s ease; }";
+  html += ".value { font-size: 26px; font-weight: bold; color: #1e293b; margin-bottom: 24px; transition: all 0.3s ease; }";
   html += ".tank-container { width: 44%; display: flex; flex-direction: column; align-items: center; position: relative; }";
   html += ".tank { width: 90px; height: 260px; background: #f1f5f9; border-radius: 25px; position: relative; overflow: hidden; border: 2px solid #e2e8f0; }";
   html += ".water { width: 100%; background: linear-gradient(180deg, #3b82f6, #1d4ed8); position: absolute; bottom: 0; transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 0 0 22px 22px; display: flex; align-items: center; justify-content: center; overflow: hidden; }";
@@ -129,12 +118,6 @@ void enviarPaginaWeb() {
   html += ".status-amarelo { color: #eab308 !important; font-weight: bold; }";
   html += ".status-verde { color: #10b981 !important; font-weight: bold; }";
   html += ".status-vazio { color: #94a3b8 !important; }";
-  
-  // Botão estilizado da Bomba
-  html += ".bomba-panel { margin-top: 25px; border-top: 1px solid #eef2f5; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; }";
-  html += ".bomba-btn { padding: 10px 22px; font-size: 14px; font-weight: bold; border-radius: 15px; border: none; cursor: pointer; transition: all 0.3s ease; }";
-  html += ".bomba-on { background-color: #10b981; color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); }";
-  html += ".bomba-off { background-color: #ef4444; color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }";
   
   html += "@keyframes drift { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }";
   html += "@keyframes blinker { 50% { opacity: 0; } }";
@@ -153,29 +136,6 @@ void enviarPaginaWeb() {
   html += "          document.title = novoNome.trim();";
   html += "        }";
   html += "      }).catch(err => console.error('Erro ao salvar nome:', err));";
-  html += "  }";
-  html += "}";
-
-  // Aciona o liga/desliga manual da bomba
-  html += "function alternarBomba() {";
-  html += "  fetch('/toggleBomba').then(response => response.text()).then(estado => {";
-  html += "    atualizarBotaoBomba(estado === 'LIGADA');";
-  html += "  });";
-  html += "}";
-
-  html += "function atualizarBotaoBomba(ligada) {";
-  html += "  let btn = document.getElementById('btn-bomba');";
-  html += "  let statusText = document.getElementById('status-bomba');";
-  html += "  if (ligada) {";
-  html += "    btn.className = 'bomba-btn bomba-on';";
-  html += "    btn.innerText = 'Desligar';";
-  html += "    statusText.innerText = 'LIGADA';";
-  html += "    statusText.style.color = '#10b981';";
-  html += "  } else {";
-  html += "    btn.className = 'bomba-btn bomba-off';";
-  html += "    btn.innerText = 'Ligar';";
-  html += "    statusText.innerText = 'DESLIGADA';";
-  statusText.style.color = '#ef4444';";
   html += "  }";
   html += "}";
 
@@ -229,16 +189,6 @@ void enviarPaginaWeb() {
   html += "      </div>";
   html += "    </div>";
   html += "  </div>";
-  
-  // Seção da bomba integrada ao Painel Web
-  html += "  <div class='bomba-panel'>";
-  html += "    <div style='text-align: left;'>";
-  html += "      <div class='label'>Bomba de Enchimento</div>";
-  html += "      <div id='status-bomba' style='font-weight: bold; font-size: 16px; color: " + String(bombaLigada ? "#10b981" : "#ef4444") + ";'>" + String(bombaLigada ? "LIGADA" : "DESLIGADA") + "</div>";
-  html += "    </div>";
-  html += "    <button id='btn-bomba' class='bomba-btn " + String(bombaLigada ? "bomba-on" : "bomba-off") + "' onclick='alternarBomba()'>" + String(bombaLigada ? "Desligar" : "Ligar") + "</button>";
-  html += "  </div>";
-
   html += "</div></body></html>";
   
   server.send(200, "text/html", html);
@@ -266,10 +216,6 @@ void loop() {
   // --- LÓGICA DO NÍVEL MÁXIMO (VERMELHO EM LOOP: ACESO -> PISCANDO -> ACESO) ---
   if (nivelMaxAtivo) {
     Serial.println("ALERTA: Nível Máximo Atingido!");
-    
-    // REGRA DE AUTOMAÇÃO: Desliga a bomba imediatamente ao atingir o topo
-    bombaLigada = false;
-    digitalWrite(pinoBomba, LOW);
 
     porcentagemAtual = 100;
     metrosAtual = 2.50;
@@ -303,9 +249,6 @@ void loop() {
   // --- LÓGICA DO NÍVEL MÉDIO (VERDE E AMARELO ACESOS FIXOS) ---
   else if (nivel2Ativo) {
     Serial.println("Info: 50% da capacidade.");
-    
-    // REGRA DE AUTOMAÇÃO: Mantém o estado definido
-    digitalWrite(pinoBomba, bombaLigada ? HIGH : LOW);
 
     porcentagemAtual = 50;
     metrosAtual = 1.25;
@@ -328,10 +271,6 @@ void loop() {
   // --- LÓGICA DO NÍVEL MÍNIMO (VERDE EM LOOP: ACESO -> PISCANDO -> ACESO) ---
   else if (nivel1Ativo) {
     Serial.println("ALERTA: Nível Mínimo Crítico!");
-    
-    // REGRA DE AUTOMAÇÃO: Liga a bomba automaticamente
-    bombaLigada = true;
-    digitalWrite(pinoBomba, HIGH);
 
     porcentagemAtual = 25;
     metrosAtual = 0.50;
@@ -371,10 +310,6 @@ void loop() {
   
   // --- COPO VAZIO ---
   else {
-    // REGRA DE AUTOMAÇÃO: Liga a bomba automaticamente
-    bombaLigada = true;
-    digitalWrite(pinoBomba, HIGH);
-
     porcentagemAtual = 0;
     metrosAtual = 0.00;
     statusAtual = "Vazio";
